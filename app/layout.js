@@ -1,8 +1,8 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'Lunch Mate — 팀 식사 스케줄러',
-  description: '팀원들과 식사 일정을 미리 공유하는 달력',
+  title: 'Mobile Board — 팀 스케줄러',
+  description: '점심, 근태, 팀 이벤트를 한 곳에서 공유하는 달력',
 }
 
 export const viewport = {

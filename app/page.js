@@ -3,9 +3,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { PALETTE, nextColor } from '@/lib/colors'
 import { WEEKDAYS, dateKey, monthGrid, monthLabel } from '@/lib/dates'
-import { isRest, isWeekend, isHoliday, fourthFriday } from '@/lib/holidays'
+import { isRest, isWeekend, isHoliday, familyDay } from '@/lib/holidays'
 
 const MAX_MEMBERS = 9
+
+const ATT_TYPES = [
+  { value: 'vacation', label: '휴가', icon: '🏝️' },
+  { value: 'training', label: '교육', icon: '🎓' },
+  { value: 'trip', label: '출장', icon: '✈️' },
+]
+const attLabel = (t) => ATT_TYPES.find((x) => x.value === t)?.label || t
+const attIcon = (t) => ATT_TYPES.find((x) => x.value === t)?.icon || ''
 
 function makeId() {
   return 'm' + Math.random().toString(36).slice(2, 9)
@@ -15,6 +23,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [members, setMembers] = useState([])
   const [schedule, setSchedule] = useState({})
+  const [attendance, setAttendance] = useState([])
+  const [events, setEvents] = useState([])
   const [memos, setMemos] = useState([])
   const [version, setVersion] = useState(0)
 
@@ -25,11 +35,17 @@ export default function Home() {
   const [newName, setNewName] = useState('')
   const [newColor, setNewColor] = useState('')
 
-  // Recurring form
-  const [recMember, setRecMember] = useState('')
-  const [recDays, setRecDays] = useState([])
-  const [recStart, setRecStart] = useState('')
-  const [recEnd, setRecEnd] = useState('')
+  // Attendance form
+  const [attMember, setAttMember] = useState('')
+  const [attType, setAttType] = useState('vacation')
+  const [attStart, setAttStart] = useState('')
+  const [attEnd, setAttEnd] = useState('')
+
+  // Event form
+  const [evTitle, setEvTitle] = useState('')
+  const [evColor, setEvColor] = useState(PALETTE[0])
+  const [evStart, setEvStart] = useState('')
+  const [evEnd, setEvEnd] = useState('')
 
   // Memo form
   const [memoAuthor, setMemoAuthor] = useState('')
@@ -43,6 +59,9 @@ export default function Home() {
   const [isMobile, setIsMobile] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [sheetKey, setSheetKey] = useState(null)
+
+  // Desktop cell detail modal
+  const [detailKey, setDetailKey] = useState(null)
 
   // ---- responsive detection ----
   useEffect(() => {
@@ -60,6 +79,8 @@ export default function Home() {
       .then((s) => {
         setMembers(s.members || [])
         setSchedule(s.schedule || {})
+        setAttendance(s.attendance || [])
+        setEvents(s.events || [])
         setMemos(s.memos || [])
         setVersion(s.version || 0)
       })
@@ -70,6 +91,8 @@ export default function Home() {
   function update(patch) {
     if (patch.members !== undefined) setMembers(patch.members)
     if (patch.schedule !== undefined) setSchedule(patch.schedule)
+    if (patch.attendance !== undefined) setAttendance(patch.attendance)
+    if (patch.events !== undefined) setEvents(patch.events)
     if (patch.memos !== undefined) setMemos(patch.memos)
     setIsDirty(true)
     setSaveStatus('idle')
@@ -95,7 +118,7 @@ export default function Home() {
   // ---- save to server ----
   function save() {
     setSaveStatus('saving')
-    pushState({ members, schedule, memos }).then((result) => {
+    pushState({ members, schedule, attendance, events, memos }).then((result) => {
       if (result.ok) {
         setSaveStatus('saved')
         setIsDirty(false)
@@ -139,7 +162,12 @@ export default function Home() {
     }
     if (selectedId === id) setSelectedId(null)
     if (memoAuthor === id) setMemoAuthor('')
-    update({ members: members.filter((x) => x.id !== id), schedule: nextSchedule })
+    const nextAttendance = attendance.filter((a) => a.memberId !== id)
+    update({
+      members: members.filter((x) => x.id !== id),
+      schedule: nextSchedule,
+      attendance: nextAttendance,
+    })
   }
 
   // ---- cell ops ----
@@ -170,8 +198,11 @@ export default function Home() {
       setSheetKey(key)
       return
     }
-    if (!selectedId) return
-    addToCell(key, selectedId)
+    if (selectedId) {
+      addToCell(key, selectedId)
+      return
+    }
+    setDetailKey(key)
   }
 
   // ---- bulk ops (current month) ----
@@ -194,32 +225,31 @@ export default function Home() {
     update({ schedule: next })
   }
 
-  // ---- recurring ----
-  function applyRecurring() {
-    if (!recMember) return alert('반복시킬 팀원을 선택하세요.')
-    if (!recDays.length) return alert('반복 요일을 하나 이상 선택하세요.')
-    if (!recStart || !recEnd) return alert('시작일과 종료일을 입력하세요.')
-    const start = new Date(recStart + 'T00:00:00')
-    const end = new Date(recEnd + 'T00:00:00')
-    if (start > end) return alert('종료일이 시작일보다 빠릅니다.')
-
-    const next = { ...schedule }
-    let count = 0
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      if (!recDays.includes(d.getDay())) continue
-      const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate())
-      const ids = next[key] || []
-      if (!ids.includes(recMember) && ids.length < MAX_MEMBERS) {
-        next[key] = [...ids, recMember]
-        count++
-      }
-    }
-    update({ schedule: next })
-    alert(`${count}일에 배치했습니다.`)
+  // ---- attendance ops ----
+  function addAttendance() {
+    if (!attMember) return alert('팀원을 선택하세요.')
+    if (!attStart || !attEnd) return alert('시작일과 종료일을 입력하세요.')
+    if (attStart > attEnd) return alert('종료일이 시작일보다 빠릅니다.')
+    const item = { id: makeId(), memberId: attMember, type: attType, start: attStart, end: attEnd }
+    update({ attendance: [...attendance, item] })
+    setAttStart(''); setAttEnd('')
+  }
+  function removeAttendance(id) {
+    update({ attendance: attendance.filter((a) => a.id !== id) })
   }
 
-  function toggleRecDay(i) {
-    setRecDays((prev) => (prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]))
+  // ---- event ops ----
+  function addEvent() {
+    const title = evTitle.trim()
+    if (!title) return alert('이벤트 제목을 입력하세요.')
+    if (!evStart || !evEnd) return alert('시작일과 종료일을 입력하세요.')
+    if (evStart > evEnd) return alert('종료일이 시작일보다 빠릅니다.')
+    const item = { id: makeId(), title, color: evColor, start: evStart, end: evEnd }
+    update({ events: [...events, item] })
+    setEvTitle(''); setEvStart(''); setEvEnd('')
+  }
+  function removeEvent(id) {
+    update({ events: events.filter((e) => e.id !== id) })
   }
 
   // ---- memo ops (auto-save immediately) ----
@@ -238,7 +268,7 @@ export default function Home() {
     const nextMemos = [memo, ...memos].slice(0, 100)
     setMemos(nextMemos)
     setMemoText('')
-    pushState({ members, schedule, memos: nextMemos }).then((result) => {
+    pushState({ members, schedule, attendance, events, memos: nextMemos }).then((result) => {
       if (!result.ok) {
         setMemos(prevMemos)
         if (result.conflict) alert('다른 사람이 방금 저장했어요. 새로고침 후 다시 시도해주세요.')
@@ -250,7 +280,7 @@ export default function Home() {
     const prevMemos = memos
     const nextMemos = memos.filter((x) => x.id !== id)
     setMemos(nextMemos)
-    pushState({ members, schedule, memos: nextMemos }).then((result) => {
+    pushState({ members, schedule, attendance, events, memos: nextMemos }).then((result) => {
       if (!result.ok) {
         setMemos(prevMemos)
         if (result.conflict) alert('다른 사람이 방금 저장했어요. 새로고침 후 다시 시도해주세요.')
@@ -270,7 +300,7 @@ export default function Home() {
 
   const cells = monthGrid(view.year, view.month)
   const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate())
-  const familyDay = fourthFriday(view.year, view.month)
+  const familyDayNum = familyDay(view.year, view.month)
 
   if (loading) return <div className="loading">불러오는 중…</div>
 
@@ -301,7 +331,7 @@ export default function Home() {
   const controls = (
     <>
       <section className="panel">
-        <h2>팀원</h2>
+        <h2>👥 팀원</h2>
         <div className="add-row">
           <input
             value={newName}
@@ -330,7 +360,7 @@ export default function Home() {
           <p className="hint">
             {selectedId
               ? `선택됨: ${memberById[selectedId]?.name} — 날짜 칸을 눌러 배치`
-              : '팀원을 눌러 선택한 뒤 날짜 칸을 누르세요'}
+              : '팀원을 눌러 선택 → 날짜 배치 / 팀원 미선택 시 날짜 클릭 → 상세보기'}
           </p>
         )}
         {isMobile && <p className="hint">날짜를 눌러 그날 참석자를 켜고 끄세요.</p>}
@@ -352,6 +382,83 @@ export default function Home() {
       </section>
 
       <section className="panel">
+        <h2>🗓️ 근태 등록</h2>
+        <select value={attMember} onChange={(e) => setAttMember(e.target.value)}>
+          <option value="">팀원 선택</option>
+          {members.map((m) => (
+            <option key={m.id} value={m.id}>{m.name}</option>
+          ))}
+        </select>
+        <select value={attType} onChange={(e) => setAttType(e.target.value)}>
+          {ATT_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>{t.icon} {t.label}</option>
+          ))}
+        </select>
+        <label className="field">시작일<input type="date" value={attStart} onChange={(e) => setAttStart(e.target.value)} /></label>
+        <label className="field">종료일<input type="date" value={attEnd} onChange={(e) => setAttEnd(e.target.value)} /></label>
+        <button className="btn wide" onClick={addAttendance}>근태 추가</button>
+        {attendance.length > 0 && (
+          <div className="mini-list">
+            {attendance.map((a) => {
+              const m = memberById[a.memberId]
+              if (!m) return null
+              return (
+                <div className="mini-row" key={a.id}>
+                  <span className="mini-dot" style={{ background: m.color }} />
+                  <span className="mini-text">
+                    {attIcon(a.type)} {m.name} · {attLabel(a.type)}
+                    <br />
+                    <small>{a.start} ~ {a.end}</small>
+                  </span>
+                  <button className="del" onClick={() => removeAttendance(a.id)} title="삭제">✕</button>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
+      <section className="panel">
+        <h2>🎉 파트 이벤트</h2>
+        <input
+          className="wide-input"
+          value={evTitle}
+          onChange={(e) => setEvTitle(e.target.value)}
+          placeholder="이벤트 제목 (예: 회식)"
+          maxLength={20}
+        />
+        <div className="swatches">
+          {PALETTE.map((c) => (
+            <button
+              key={c}
+              className={'sw' + (evColor === c ? ' on' : '')}
+              style={{ background: c }}
+              onClick={() => setEvColor(c)}
+              title="이벤트 색"
+            />
+          ))}
+        </div>
+        <label className="field">시작일<input type="date" value={evStart} onChange={(e) => setEvStart(e.target.value)} /></label>
+        <label className="field">종료일<input type="date" value={evEnd} onChange={(e) => setEvEnd(e.target.value)} /></label>
+        <button className="btn wide" onClick={addEvent}>이벤트 추가</button>
+        {events.length > 0 && (
+          <div className="mini-list">
+            {events.map((ev) => (
+              <div className="mini-row" key={ev.id}>
+                <span className="mini-dot" style={{ background: ev.color }} />
+                <span className="mini-text">
+                  {ev.title}
+                  <br />
+                  <small>{ev.start} ~ {ev.end}</small>
+                </span>
+                <button className="del" onClick={() => removeEvent(ev.id)} title="삭제">✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="panel">
         <h2>전체 ({monthLabel(view.year, view.month)})</h2>
         <div className="btn-col">
           <button className="btn wide" onClick={fillMonth}>전체 채우기</button>
@@ -359,29 +466,6 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="panel">
-        <h2>반복 일정 (매주)</h2>
-        <select value={recMember} onChange={(e) => setRecMember(e.target.value)}>
-          <option value="">팀원 선택</option>
-          {members.map((m) => (
-            <option key={m.id} value={m.id}>{m.name}</option>
-          ))}
-        </select>
-        <div className="weekday-row">
-          {WEEKDAYS.map((w, i) => (
-            <button
-              key={i}
-              className={'wd' + (recDays.includes(i) ? ' on' : '')}
-              onClick={() => toggleRecDay(i)}
-            >
-              {w}
-            </button>
-          ))}
-        </div>
-        <label className="field">시작일<input type="date" value={recStart} onChange={(e) => setRecStart(e.target.value)} /></label>
-        <label className="field">종료일<input type="date" value={recEnd} onChange={(e) => setRecEnd(e.target.value)} /></label>
-        <button className="btn wide" onClick={applyRecurring}>반복 적용</button>
-      </section>
     </>
   )
 
@@ -406,7 +490,9 @@ export default function Home() {
           const ids = schedule[key] || []
           const isToday = key === todayKey
           const rest = isRest(view.year, view.month, d)
-          const isFamilyDay = d === familyDay
+          const isFamilyDay = d === familyDayNum
+          const dayAttendance = attendance.filter((a) => a.start <= key && key <= a.end)
+          const dayEvents = events.filter((ev) => ev.start <= key && key <= ev.end)
           return (
             <div
               key={idx}
@@ -415,6 +501,40 @@ export default function Home() {
             >
               <div className={'daynum' + (rest ? ' red' : '')}>{d}</div>
               {isFamilyDay && <div className="family-day-badge">Family Day</div>}
+              {(dayAttendance.length > 0 || dayEvents.length > 0) && (
+                <div className="bars">
+                  {dayEvents.map((ev) => {
+                    const isStart = ev.start === key
+                    const isEnd = ev.end === key
+                    return (
+                      <div
+                        key={ev.id}
+                        className={'bar ev' + (isStart ? ' bar-start' : '') + (isEnd ? ' bar-end' : '')}
+                        style={{ background: ev.color }}
+                        title={`${ev.title} (${ev.start} ~ ${ev.end})`}
+                      >
+                        {isStart ? ev.title : ''}
+                      </div>
+                    )
+                  })}
+                  {dayAttendance.map((a) => {
+                    const m = memberById[a.memberId]
+                    if (!m) return null
+                    const isStart = a.start === key
+                    const isEnd = a.end === key
+                    return (
+                      <div
+                        key={a.id}
+                        className={'bar att' + (isStart ? ' bar-start' : '') + (isEnd ? ' bar-end' : '')}
+                        style={{ background: m.color }}
+                        title={`${m.name} · ${attLabel(a.type)} (${a.start} ~ ${a.end})`}
+                      >
+                        {isStart ? `${attIcon(a.type)} ${m.name} · ${attLabel(a.type)}` : ''}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
               {isMobile ? (
                 <div className="chips">
                   {ids.map((id) => {
@@ -492,7 +612,7 @@ export default function Home() {
       <div className="m-layout">
         <header className="topbar">
           <button className="menu-btn" onClick={() => setDrawerOpen(true)} aria-label="메뉴">☰</button>
-          <span className="topbar-title">🍚 Lunch Mate</span>
+          <span className="topbar-title">Mobile Board</span>
           <span className="topbar-spacer" />
           {saveBtn}
         </header>
@@ -506,7 +626,7 @@ export default function Home() {
           <div className="overlay" onClick={() => setDrawerOpen(false)}>
             <aside className="drawer" onClick={(e) => e.stopPropagation()}>
               <div className="drawer-head">
-                <h1 className="brand">🍚 Lunch Mate</h1>
+                <h1 className="brand">Mobile Board</h1>
                 <button className="close" onClick={() => setDrawerOpen(false)}>✕</button>
               </div>
               {controls}
@@ -549,7 +669,7 @@ export default function Home() {
   return (
     <div className="layout">
       <aside className="sidebar">
-        <h1 className="brand">🍚 Lunch Mate</h1>
+        <h1 className="brand">Mobile Board</h1>
         {controls}
       </aside>
       <main className="main">
@@ -559,6 +679,71 @@ export default function Home() {
         {calendar}
         {memoSection}
       </main>
+      {detailKey && (() => {
+        const ids = schedule[detailKey] || []
+        const dayAtt = attendance.filter((a) => a.start <= detailKey && detailKey <= a.end)
+        const dayEv = events.filter((ev) => ev.start <= detailKey && detailKey <= ev.end)
+        return (
+          <div className="overlay" onClick={() => setDetailKey(null)}>
+            <div className="detail-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="detail-head">
+                <strong>{detailKey}</strong>
+                <button className="close" onClick={() => setDetailKey(null)}>닫기</button>
+              </div>
+
+              <div className="detail-section">
+                <h3>🎉 이벤트</h3>
+                {dayEv.length === 0 && <p className="empty">없음</p>}
+                {dayEv.map((ev) => (
+                  <div className="detail-row" key={ev.id}>
+                    <span className="mini-dot" style={{ background: ev.color }} />
+                    <span>{ev.title}</span>
+                    <small>{ev.start} ~ {ev.end}</small>
+                  </div>
+                ))}
+              </div>
+
+              <div className="detail-section">
+                <h3>🗓️ 근태</h3>
+                {dayAtt.length === 0 && <p className="empty">없음</p>}
+                {dayAtt.map((a) => {
+                  const m = memberById[a.memberId]
+                  if (!m) return null
+                  return (
+                    <div className="detail-row" key={a.id}>
+                      <span className="mini-dot" style={{ background: m.color }} />
+                      <span>{attIcon(a.type)} {m.name} · {attLabel(a.type)}</span>
+                      <small>{a.start} ~ {a.end}</small>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="detail-section">
+                <h3>🍚 점심</h3>
+                {ids.length === 0 && <p className="empty">없음</p>}
+                <div className="detail-chips">
+                  {ids.map((id) => {
+                    const m = memberById[id]
+                    if (!m) return null
+                    return (
+                      <button
+                        key={id}
+                        className="chip"
+                        style={{ background: m.color }}
+                        onClick={() => removeFromCell(detailKey, id)}
+                        title="눌러서 제외"
+                      >
+                        {m.name}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
