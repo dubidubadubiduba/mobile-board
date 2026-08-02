@@ -38,14 +38,14 @@ export default function Home() {
   // Attendance form
   const [attMember, setAttMember] = useState('')
   const [attType, setAttType] = useState('vacation')
-  const [attStart, setAttStart] = useState('')
-  const [attEnd, setAttEnd] = useState('')
 
   // Event form
   const [evTitle, setEvTitle] = useState('')
   const [evColor, setEvColor] = useState(PALETTE[0])
-  const [evStart, setEvStart] = useState('')
-  const [evEnd, setEvEnd] = useState('')
+
+  // Range-picking mode — user clicks two cells to define start/end
+  // { kind: 'att'|'ev', payload: {...}, start: null|'YYYY-MM-DD' }
+  const [rangeMode, setRangeMode] = useState(null)
 
   // Memo form
   const [memoAuthor, setMemoAuthor] = useState('')
@@ -194,6 +194,10 @@ export default function Home() {
   }
 
   function onCellClick(key) {
+    if (rangeMode) {
+      commitRange(key)
+      return
+    }
     if (isMobile) {
       setSheetKey(key)
       return
@@ -205,48 +209,38 @@ export default function Home() {
     setDetailKey(key)
   }
 
-  // ---- bulk ops (current month) ----
-  function fillMonth() {
-    if (!members.length) return
-    const cells = monthGrid(view.year, view.month).filter(Boolean)
-    const next = { ...schedule }
-    cells.forEach((d) => {
-      if (isRest(view.year, view.month, d)) return
-      next[dateKey(view.year, view.month, d)] = members.map((m) => m.id)
-    })
-    update({ schedule: next })
-  }
-
-  function clearMonth() {
-    if (!confirm(`${monthLabel(view.year, view.month)}의 모든 배치를 지울까요?`)) return
-    const cells = monthGrid(view.year, view.month).filter(Boolean)
-    const next = { ...schedule }
-    cells.forEach((d) => delete next[dateKey(view.year, view.month, d)])
-    update({ schedule: next })
-  }
-
-  // ---- attendance ops ----
-  function addAttendance() {
+  // ---- attendance / event range picking ----
+  function startAttPick() {
     if (!attMember) return alert('팀원을 선택하세요.')
-    if (!attStart || !attEnd) return alert('시작일과 종료일을 입력하세요.')
-    if (attStart > attEnd) return alert('종료일이 시작일보다 빠릅니다.')
-    const item = { id: makeId(), memberId: attMember, type: attType, start: attStart, end: attEnd }
-    update({ attendance: [...attendance, item] })
-    setAttStart(''); setAttEnd('')
+    setSelectedId(null)
+    setRangeMode({ kind: 'att', payload: { memberId: attMember, type: attType }, start: null })
   }
-  function removeAttendance(id) {
-    update({ attendance: attendance.filter((a) => a.id !== id) })
-  }
-
-  // ---- event ops ----
-  function addEvent() {
+  function startEvPick() {
     const title = evTitle.trim()
     if (!title) return alert('이벤트 제목을 입력하세요.')
-    if (!evStart || !evEnd) return alert('시작일과 종료일을 입력하세요.')
-    if (evStart > evEnd) return alert('종료일이 시작일보다 빠릅니다.')
-    const item = { id: makeId(), title, color: evColor, start: evStart, end: evEnd }
-    update({ events: [...events, item] })
-    setEvTitle(''); setEvStart(''); setEvEnd('')
+    setSelectedId(null)
+    setRangeMode({ kind: 'ev', payload: { title, color: evColor }, start: null })
+  }
+  function cancelRange() { setRangeMode(null) }
+
+  function commitRange(key) {
+    if (!rangeMode) return
+    if (!rangeMode.start) {
+      setRangeMode({ ...rangeMode, start: key })
+      return
+    }
+    const [start, end] = rangeMode.start <= key ? [rangeMode.start, key] : [key, rangeMode.start]
+    if (rangeMode.kind === 'att') {
+      update({ attendance: [...attendance, { id: makeId(), ...rangeMode.payload, start, end }] })
+    } else {
+      update({ events: [...events, { id: makeId(), ...rangeMode.payload, start, end }] })
+      setEvTitle('')
+    }
+    setRangeMode(null)
+  }
+
+  function removeAttendance(id) {
+    update({ attendance: attendance.filter((a) => a.id !== id) })
   }
   function removeEvent(id) {
     update({ events: events.filter((e) => e.id !== id) })
@@ -394,9 +388,8 @@ export default function Home() {
             <option key={t.value} value={t.value}>{t.icon} {t.label}</option>
           ))}
         </select>
-        <label className="field">시작일<input type="date" value={attStart} onChange={(e) => setAttStart(e.target.value)} /></label>
-        <label className="field">종료일<input type="date" value={attEnd} onChange={(e) => setAttEnd(e.target.value)} /></label>
-        <button className="btn wide" onClick={addAttendance}>근태 추가</button>
+        <button className="btn wide" onClick={startAttPick}>달력에서 범위 선택</button>
+        <p className="hint">시작·종료 셀을 순서대로 클릭하세요.</p>
         {attendance.length > 0 && (
           <div className="mini-list">
             {attendance.map((a) => {
@@ -438,9 +431,8 @@ export default function Home() {
             />
           ))}
         </div>
-        <label className="field">시작일<input type="date" value={evStart} onChange={(e) => setEvStart(e.target.value)} /></label>
-        <label className="field">종료일<input type="date" value={evEnd} onChange={(e) => setEvEnd(e.target.value)} /></label>
-        <button className="btn wide" onClick={addEvent}>이벤트 추가</button>
+        <button className="btn wide" onClick={startEvPick}>달력에서 범위 선택</button>
+        <p className="hint">시작·종료 셀을 순서대로 클릭하세요.</p>
         {events.length > 0 && (
           <div className="mini-list">
             {events.map((ev) => (
@@ -458,19 +450,22 @@ export default function Home() {
         )}
       </section>
 
-      <section className="panel">
-        <h2>전체 ({monthLabel(view.year, view.month)})</h2>
-        <div className="btn-col">
-          <button className="btn wide" onClick={fillMonth}>전체 채우기</button>
-          <button className="btn wide ghost" onClick={clearMonth}>전체 빼기</button>
-        </div>
-      </section>
-
     </>
+  )
+
+  const rangeBanner = rangeMode && (
+    <div className="range-banner">
+      <span>
+        {rangeMode.kind === 'att' ? '🗓️ 근태' : '🎉 이벤트'} 범위 선택:{' '}
+        {rangeMode.start ? `시작 ${rangeMode.start} → 종료 셀 클릭` : '시작 셀 클릭'}
+      </span>
+      <button className="btn ghost" onClick={cancelRange}>취소</button>
+    </div>
   )
 
   const calendar = (
     <>
+      {rangeBanner}
       <header className="cal-header">
         <button className="nav" onClick={() => shiftMonth(-1)}>{isMobile ? '◀' : '◀ 이전달'}</button>
         <h2>{monthLabel(view.year, view.month)}</h2>
@@ -496,7 +491,9 @@ export default function Home() {
           return (
             <div
               key={idx}
-              className={'cell' + (isToday ? ' today' : '') + (rest ? ' rest-cell' : '') + (!isMobile && selectedId ? ' placing' : '')}
+              className={'cell' + (isToday ? ' today' : '') + (rest ? ' rest-cell' : '') +
+                (!isMobile && (selectedId || rangeMode) ? ' placing' : '') +
+                (rangeMode?.start === key ? ' range-start' : '')}
               onClick={() => onCellClick(key)}
             >
               <div className={'daynum' + (rest ? ' red' : '')}>{d}</div>
