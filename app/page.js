@@ -39,7 +39,7 @@ export default function Home() {
 
   // Event form
   const [evTitle, setEvTitle] = useState('')
-  const [evColor, setEvColor] = useState(PALETTE[0])
+  const [evColor, setEvColor] = useState(PALETTE[9])
 
   // Range-picking mode — user clicks two cells to define start/end
   // { kind: 'att'|'ev', payload: {...}, start: null|'YYYY-MM-DD' }
@@ -433,7 +433,7 @@ export default function Home() {
           maxLength={20}
         />
         <div className="swatches">
-          {PALETTE.map((c) => (
+          {PALETTE.slice(9).map((c) => (
             <button
               key={c}
               className={'sw' + (evColor === c ? ' on' : '')}
@@ -535,7 +535,7 @@ export default function Home() {
                         style={{ background: ev.color }}
                         title={`${ev.title} (${ev.start} ~ ${ev.end})`}
                       >
-                        {isStart ? ev.title : ''}
+                        {isStart ? `🎉 ${ev.title}` : ''}
                       </div>
                     )
                   })}
@@ -728,8 +728,9 @@ export default function Home() {
                     {sheetEv.map((ev) => (
                       <div className="detail-row" key={ev.id}>
                         <span className="mini-dot" style={{ background: ev.color }} />
-                        <span>{ev.title}</span>
+                        <span>🎉 {ev.title}</span>
                         <small>{ev.start} ~ {ev.end}</small>
+                        <button className="del inline" onClick={() => removeEvent(ev.id)} title="삭제">✕</button>
                       </div>
                     ))}
                   </div>
@@ -813,8 +814,9 @@ export default function Home() {
                 {dayEv.map((ev) => (
                   <div className="detail-row" key={ev.id}>
                     <span className="mini-dot" style={{ background: ev.color }} />
-                    <span>{ev.title}</span>
+                    <span>🎉 {ev.title}</span>
                     <small>{ev.start} ~ {ev.end}</small>
+                    <button className="del inline" onClick={() => removeEvent(ev.id)} title="삭제">✕</button>
                   </div>
                 ))}
               </div>
