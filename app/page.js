@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { PALETTE, nextColor } from '@/lib/colors'
-import { WEEKDAYS, dateKey, monthGrid, monthLabel } from '@/lib/dates'
+import { WEEKDAYS, dateKey, monthGrid, monthLabel, isoWeek } from '@/lib/dates'
 import { isRest, isWeekend, isHoliday, familyDay } from '@/lib/holidays'
 
 const ATT_TYPES = [
@@ -63,6 +63,17 @@ export default function Home() {
 
   // Attendance overview modal
   const [attOverviewOpen, setAttOverviewOpen] = useState(false)
+
+  // Dark mode (persisted in localStorage)
+  const [darkMode, setDarkMode] = useState(false)
+  useEffect(() => {
+    const stored = localStorage.getItem('mb-theme')
+    if (stored === 'dark') setDarkMode(true)
+  }, [])
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? 'dark' : 'light'
+    localStorage.setItem('mb-theme', darkMode ? 'dark' : 'light')
+  }, [darkMode])
 
   // ---- responsive detection ----
   useEffect(() => {
@@ -458,6 +469,13 @@ export default function Home() {
     <>
       {rangeBanner}
       <header className="cal-header">
+        <button
+          className="theme-btn"
+          onClick={() => setDarkMode((v) => !v)}
+          title={darkMode ? '라이트 모드' : '다크 모드'}
+        >
+          {darkMode ? '☀️' : '🌙'}
+        </button>
         <button className="nav" onClick={() => shiftMonth(-1)}>{isMobile ? '◀' : '◀ 이전달'}</button>
         <h2>{monthLabel(view.year, view.month)}</h2>
         <button className="nav" onClick={() => shiftMonth(1)}>{isMobile ? '▶' : '다음달 ▶'}</button>
@@ -465,13 +483,28 @@ export default function Home() {
       </header>
 
       <div className="weekhead">
+        <div className="wh weeknum-head">W</div>
         {WEEKDAYS.map((w, i) => (
           <div key={w} className={'wh' + (i === 0 ? ' sun' : i === 6 ? ' sat' : '')}>{w}</div>
         ))}
       </div>
 
       <div className="grid">
-        {cells.map((d, idx) => {
+        {cells.flatMap((d, idx) => {
+          const rowStart = idx % 7 === 0
+          let weeknumNode = null
+          if (rowStart) {
+            let anchorDay = d
+            if (!anchorDay) for (let i = idx + 1; i < idx + 7; i++) if (cells[i]) { anchorDay = cells[i]; break }
+            const wn = anchorDay ? isoWeek(view.year, view.month, anchorDay) : null
+            const isCurWeek = anchorDay && wn === isoWeek(today.getFullYear(), today.getMonth(), today.getDate()) && view.year === today.getFullYear()
+            weeknumNode = (
+              <div key={`w${idx}`} className={'weeknum' + (isCurWeek ? ' cur' : '')}>
+                {wn ? `W${wn}` : ''}
+              </div>
+            )
+          }
+          const cellNode = (() => {
           if (!d) return <div key={idx} className="cell empty-cell" />
           const key = dateKey(view.year, view.month, d)
           const ids = schedule[key] || []
@@ -556,6 +589,8 @@ export default function Home() {
               )}
             </div>
           )
+          })()
+          return weeknumNode ? [weeknumNode, cellNode] : [cellNode]
         })}
       </div>
     </>
