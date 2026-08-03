@@ -374,14 +374,6 @@ export default function Home() {
             )
           })}
         </div>
-        {!isMobile && (
-          <p className="hint">
-            {selectedId
-              ? `선택됨: ${memberById[selectedId]?.name} — 날짜 칸을 눌러 배치`
-              : '팀원을 눌러 선택 → 날짜 배치 / 팀원 미선택 시 날짜 클릭 → 상세보기'}
-          </p>
-        )}
-        {isMobile && <p className="hint">날짜를 눌러 그날 참석자를 켜고 끄세요.</p>}
         <div className="member-list">
           {members.map((m) => (
             <div className="member-row" key={m.id}>
@@ -397,6 +389,18 @@ export default function Home() {
           ))}
           {!members.length && <p className="empty">아직 팀원이 없어요.</p>}
         </div>
+      </section>
+
+      <section className="panel">
+        <h2>🍚 점심 멤버</h2>
+        {!isMobile && (
+          <p className="hint">
+            {selectedId
+              ? `선택됨: ${memberById[selectedId]?.name} — 날짜 칸을 눌러 배치`
+              : '위 팀원을 눌러 선택한 뒤 날짜 칸을 눌러 배치하세요. 팀원 미선택 상태로 날짜 클릭 시 상세보기.'}
+          </p>
+        )}
+        {isMobile && <p className="hint">날짜를 눌러 그날 참석자를 켜고 끄세요.</p>}
       </section>
 
       <section className="panel">
@@ -742,6 +746,7 @@ export default function Home() {
                           <span className="mini-dot" style={{ background: m.color }} />
                           <span>{attIcon(a.type)} {m.name} · {attLabel(a.type)}</span>
                           <small>{a.start} ~ {a.end}</small>
+                          <button className="del inline" onClick={() => removeAttendance(a.id)} title="삭제">✕</button>
                         </div>
                       )
                     })}
@@ -825,6 +830,7 @@ export default function Home() {
                       <span className="mini-dot" style={{ background: m.color }} />
                       <span>{attIcon(a.type)} {m.name} · {attLabel(a.type)}</span>
                       <small>{a.start} ~ {a.end}</small>
+                      <button className="del inline" onClick={() => removeAttendance(a.id)} title="삭제">✕</button>
                     </div>
                   )
                 })}

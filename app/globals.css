@@ -318,6 +318,11 @@ select { margin-bottom: 8px; }
 .detail-section h3 { font-size: 13px; color: var(--muted); margin-bottom: 6px; }
 .detail-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
 .detail-row small { color: var(--muted); margin-left: auto; font-size: 11px; }
+.detail-row .del.inline {
+  position: static; opacity: 1; margin-left: 6px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--muted);
+}
+.detail-row .del.inline:hover { background: #ffe3e3; color: #d33; border-color: #ffb3b3; }
 .detail-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .detail-chips .chip { padding: 4px 10px; }
 
