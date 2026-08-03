@@ -78,8 +78,9 @@ select { margin-bottom: 8px; }
 .field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
 
 /* ---------- Calendar ---------- */
-.cal-header { display: flex; align-items: center; justify-content: center; gap: 20px; }
+.cal-header { position: relative; display: flex; align-items: center; justify-content: center; gap: 20px; }
 .cal-header h2 { font-size: 22px; min-width: 150px; text-align: center; }
+.cal-header-save { position: absolute; right: 0; }
 .nav {
   border: 1px solid var(--line); background: #fff; padding: 8px 14px;
   border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;
@@ -190,7 +191,6 @@ select { margin-bottom: 8px; }
 .save-conflict { background: #d97706; }
 
 /* ================= Desktop layout ================= */
-.main-topbar { display: flex; justify-content: flex-end; margin-bottom: 4px; }
 .layout { display: grid; grid-template-columns: 300px 1fr; min-height: 100vh; }
 .sidebar {
   background: var(--panel); border-right: 1px solid var(--line);

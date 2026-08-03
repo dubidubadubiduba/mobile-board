@@ -461,6 +461,7 @@ export default function Home() {
         <button className="nav" onClick={() => shiftMonth(-1)}>{isMobile ? '◀' : '◀ 이전달'}</button>
         <h2>{monthLabel(view.year, view.month)}</h2>
         <button className="nav" onClick={() => shiftMonth(1)}>{isMobile ? '▶' : '다음달 ▶'}</button>
+        {!isMobile && <span className="cal-header-save">{saveBtn}</span>}
       </header>
 
       <div className="weekhead">
@@ -734,9 +735,6 @@ export default function Home() {
         {controls}
       </aside>
       <main className="main">
-        <div className="main-topbar">
-          {saveBtn}
-        </div>
         {calendar}
         {memoSection}
       </main>
