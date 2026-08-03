@@ -161,6 +161,11 @@ export default function Home() {
     return map
   }, [members, attendance])
 
+  const sortedEvents = useMemo(
+    () => [...events].sort((a, b) => a.start.localeCompare(b.start)),
+    [events]
+  )
+
   // ---- member ops ----
   function addMember() {
     const name = newName.trim()
@@ -621,11 +626,6 @@ export default function Home() {
   )
 
   // ---------- Overview modals (shared) ----------
-  const sortedEvents = useMemo(
-    () => [...events].sort((a, b) => a.start.localeCompare(b.start)),
-    [events]
-  )
-
   const evOverviewModal = evOverviewOpen && (
     <div className="overlay" onClick={() => setEvOverviewOpen(false)}>
       <div className="detail-modal wide-modal" onClick={(e) => e.stopPropagation()}>
