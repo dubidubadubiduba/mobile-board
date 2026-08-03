@@ -153,7 +153,7 @@ select { margin-bottom: 8px; }
 .chips {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px;
   padding: 0 6px;
-  flex: 1; min-height: 0; overflow-y: auto;
+  max-height: 96px; overflow-y: auto;
 }
 .chips::-webkit-scrollbar { width: 4px; }
 .chips::-webkit-scrollbar-thumb { background: rgba(0,0,0,.2); border-radius: 2px; }
