@@ -349,7 +349,7 @@ export default function Home() {
   const controls = (
     <>
       <section className="panel">
-        <h2>👥 팀원</h2>
+        <h2>👥 팀원 등록</h2>
         <div className="add-row">
           <input
             value={newName}

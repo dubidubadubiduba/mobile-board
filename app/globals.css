@@ -44,7 +44,7 @@ html, body {
 .add-row input { flex: 1; }
 select { margin-bottom: 8px; }
 
-.swatches { display: flex; gap: 5px; margin: 8px 0 2px; flex-wrap: wrap; }
+.swatches { display: flex; gap: 5px; margin: 8px 0 12px; flex-wrap: wrap; }
 .sw {
   width: 24px; height: 24px; border-radius: 6px; cursor: pointer;
   border: 2px solid transparent;
