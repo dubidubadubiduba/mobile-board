@@ -190,14 +190,15 @@ select { margin-bottom: 8px; }
 .save-conflict { background: #d97706; }
 
 /* ================= Desktop layout ================= */
-.main-topbar { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+.main-topbar { display: flex; justify-content: flex-end; margin-bottom: 4px; }
 .layout { display: grid; grid-template-columns: 300px 1fr; min-height: 100vh; }
 .sidebar {
   background: var(--panel); border-right: 1px solid var(--line);
   padding: 16px; display: flex; flex-direction: column;
 }
 .sidebar .brand { margin-bottom: 14px; }
-.main { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; }
+.main { padding: 8px 22px 18px; display: flex; flex-direction: column; gap: 6px; }
+.cal-header { margin-top: 0; }
 
 /* ================= Mobile layout ================= */
 .m-layout { min-height: 100vh; display: flex; flex-direction: column; }
@@ -209,7 +210,7 @@ select { margin-bottom: 8px; }
 .topbar-title { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; }
 .topbar-spacer { flex: 1; }
 
-.m-main { padding: 12px; display: flex; flex-direction: column; gap: 12px; }
+.m-main { padding: 6px 10px 12px; display: flex; flex-direction: column; gap: 6px; }
 .m-main .cal-header { gap: 12px; }
 .m-main .cal-header h2 { font-size: 18px; min-width: 110px; }
 .m-main .nav { padding: 8px 12px; }
