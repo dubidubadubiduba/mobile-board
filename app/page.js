@@ -138,6 +138,17 @@ export default function Home() {
     return map
   }, [members])
 
+  const attByMember = useMemo(() => {
+    const map = new Map()
+    members.forEach((m) => map.set(m.id, []))
+    attendance.forEach((a) => {
+      if (!map.has(a.memberId)) map.set(a.memberId, [])
+      map.get(a.memberId).push(a)
+    })
+    for (const list of map.values()) list.sort((x, y) => x.start.localeCompare(y.start))
+    return map
+  }, [members, attendance])
+
   // ---- member ops ----
   function addMember() {
     const name = newName.trim()
@@ -583,17 +594,6 @@ export default function Home() {
   )
 
   // ---------- Attendance overview modal (shared) ----------
-  const attByMember = useMemo(() => {
-    const map = new Map()
-    members.forEach((m) => map.set(m.id, []))
-    attendance.forEach((a) => {
-      if (!map.has(a.memberId)) map.set(a.memberId, [])
-      map.get(a.memberId).push(a)
-    })
-    for (const list of map.values()) list.sort((x, y) => x.start.localeCompare(y.start))
-    return map
-  }, [members, attendance])
-
   const attOverviewModal = attOverviewOpen && (
     <div className="overlay" onClick={() => setAttOverviewOpen(false)}>
       <div className="detail-modal wide-modal" onClick={(e) => e.stopPropagation()}>
