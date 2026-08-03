@@ -61,8 +61,9 @@ export default function Home() {
   // Desktop cell detail modal
   const [detailKey, setDetailKey] = useState(null)
 
-  // Attendance overview modal
+  // Overview modals
   const [attOverviewOpen, setAttOverviewOpen] = useState(false)
+  const [evOverviewOpen, setEvOverviewOpen] = useState(false)
 
   // Dark mode (persisted in localStorage)
   const [darkMode, setDarkMode] = useState(false)
@@ -409,7 +410,7 @@ export default function Home() {
         <button className="btn wide" onClick={startAttPick}>달력에서 범위 선택</button>
         <p className="hint">시작·종료 셀을 순서대로 클릭하세요.</p>
         <button className="btn wide ghost" onClick={() => setAttOverviewOpen(true)}>
-          휴가 한눈에 보기 ({attendance.length})
+          휴가 한 눈에 보기 ({attendance.length})
         </button>
       </section>
 
@@ -435,21 +436,9 @@ export default function Home() {
         </div>
         <button className="btn wide" onClick={startEvPick}>달력에서 범위 선택</button>
         <p className="hint">시작·종료 셀을 순서대로 클릭하세요.</p>
-        {events.length > 0 && (
-          <div className="mini-list">
-            {events.map((ev) => (
-              <div className="mini-row" key={ev.id}>
-                <span className="mini-dot" style={{ background: ev.color }} />
-                <span className="mini-text">
-                  {ev.title}
-                  <br />
-                  <small>{ev.start} ~ {ev.end}</small>
-                </span>
-                <button className="del" onClick={() => removeEvent(ev.id)} title="삭제">✕</button>
-              </div>
-            ))}
-          </div>
-        )}
+        <button className="btn wide ghost" onClick={() => setEvOverviewOpen(true)}>
+          이벤트 한 눈에 보기 ({events.length})
+        </button>
       </section>
 
     </>
@@ -521,8 +510,10 @@ export default function Home() {
                 (rangeMode?.start === key ? ' range-start' : '')}
               onClick={() => onCellClick(key)}
             >
-              <div className={'daynum' + (rest ? ' red' : '')}>{d}</div>
-              {isFamilyDay && <div className="family-day-badge">Family Day</div>}
+              <div className={'daynum' + (rest ? ' red' : '')}>
+                {d}
+                {isFamilyDay && <span className="family-day-badge">Family Day</span>}
+              </div>
               {(dayAttendance.length > 0 || dayEvents.length > 0) && (
                 <div className="bars">
                   {dayEvents.map((ev) => {
@@ -629,12 +620,37 @@ export default function Home() {
     </section>
   )
 
-  // ---------- Attendance overview modal (shared) ----------
+  // ---------- Overview modals (shared) ----------
+  const sortedEvents = useMemo(
+    () => [...events].sort((a, b) => a.start.localeCompare(b.start)),
+    [events]
+  )
+
+  const evOverviewModal = evOverviewOpen && (
+    <div className="overlay" onClick={() => setEvOverviewOpen(false)}>
+      <div className="detail-modal wide-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="detail-head">
+          <strong>이벤트 한 눈에 보기</strong>
+          <button className="close" onClick={() => setEvOverviewOpen(false)}>닫기</button>
+        </div>
+        {sortedEvents.length === 0 && <p className="empty">등록된 이벤트 없음</p>}
+        {sortedEvents.map((ev) => (
+          <div className="detail-row" key={ev.id}>
+            <span className="mini-dot" style={{ background: ev.color }} />
+            <span>{ev.title}</span>
+            <small>{ev.start} ~ {ev.end}</small>
+            <button className="del" onClick={() => removeEvent(ev.id)} title="삭제">✕</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
   const attOverviewModal = attOverviewOpen && (
     <div className="overlay" onClick={() => setAttOverviewOpen(false)}>
       <div className="detail-modal wide-modal" onClick={(e) => e.stopPropagation()}>
         <div className="detail-head">
-          <strong>휴가 한눈에 보기</strong>
+          <strong>휴가 한 눈에 보기</strong>
           <button className="close" onClick={() => setAttOverviewOpen(false)}>닫기</button>
         </div>
         {members.length === 0 && <p className="empty">먼저 팀원을 추가하세요.</p>}
@@ -758,6 +774,7 @@ export default function Home() {
         })()}
 
         {attOverviewModal}
+        {evOverviewModal}
       </div>
     )
   }
