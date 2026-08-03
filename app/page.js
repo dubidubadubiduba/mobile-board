@@ -61,6 +61,9 @@ export default function Home() {
   // Desktop cell detail modal
   const [detailKey, setDetailKey] = useState(null)
 
+  // Attendance overview modal
+  const [attOverviewOpen, setAttOverviewOpen] = useState(false)
+
   // ---- responsive detection ----
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 760px)')
@@ -383,25 +386,9 @@ export default function Home() {
         </select>
         <button className="btn wide" onClick={startAttPick}>달력에서 범위 선택</button>
         <p className="hint">시작·종료 셀을 순서대로 클릭하세요.</p>
-        {attendance.length > 0 && (
-          <div className="mini-list">
-            {attendance.map((a) => {
-              const m = memberById[a.memberId]
-              if (!m) return null
-              return (
-                <div className="mini-row" key={a.id}>
-                  <span className="mini-dot" style={{ background: m.color }} />
-                  <span className="mini-text">
-                    {attIcon(a.type)} {m.name} · {attLabel(a.type)}
-                    <br />
-                    <small>{a.start} ~ {a.end}</small>
-                  </span>
-                  <button className="del" onClick={() => removeAttendance(a.id)} title="삭제">✕</button>
-                </div>
-              )
-            })}
-          </div>
-        )}
+        <button className="btn wide ghost" onClick={() => setAttOverviewOpen(true)}>
+          휴가 한눈에 보기 ({attendance.length})
+        </button>
       </section>
 
       <section className="panel">
@@ -595,6 +582,50 @@ export default function Home() {
     </section>
   )
 
+  // ---------- Attendance overview modal (shared) ----------
+  const attByMember = useMemo(() => {
+    const map = new Map()
+    members.forEach((m) => map.set(m.id, []))
+    attendance.forEach((a) => {
+      if (!map.has(a.memberId)) map.set(a.memberId, [])
+      map.get(a.memberId).push(a)
+    })
+    for (const list of map.values()) list.sort((x, y) => x.start.localeCompare(y.start))
+    return map
+  }, [members, attendance])
+
+  const attOverviewModal = attOverviewOpen && (
+    <div className="overlay" onClick={() => setAttOverviewOpen(false)}>
+      <div className="detail-modal wide-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="detail-head">
+          <strong>휴가 한눈에 보기</strong>
+          <button className="close" onClick={() => setAttOverviewOpen(false)}>닫기</button>
+        </div>
+        {members.length === 0 && <p className="empty">먼저 팀원을 추가하세요.</p>}
+        {members.map((m) => {
+          const list = attByMember.get(m.id) || []
+          return (
+            <div className="overview-member" key={m.id}>
+              <div className="overview-name">
+                <span className="mini-dot" style={{ background: m.color }} />
+                <strong>{m.name}</strong>
+                <small>{list.length}건</small>
+              </div>
+              {list.length === 0 && <p className="empty">등록된 근태 없음</p>}
+              {list.map((a) => (
+                <div className="detail-row" key={a.id}>
+                  <span>{attIcon(a.type)} {attLabel(a.type)}</span>
+                  <small>{a.start} ~ {a.end}</small>
+                  <button className="del" onClick={() => removeAttendance(a.id)} title="삭제">✕</button>
+                </div>
+              ))}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+
   // ---------- Mobile layout ----------
   if (isMobile) {
     const sheetIds = sheetKey ? schedule[sheetKey] || [] : []
@@ -689,6 +720,8 @@ export default function Home() {
             </div>
           )
         })()}
+
+        {attOverviewModal}
       </div>
     )
   }
@@ -772,6 +805,7 @@ export default function Home() {
           </div>
         )
       })()}
+      {attOverviewModal}
     </div>
   )
 }

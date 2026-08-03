@@ -283,5 +283,15 @@ select { margin-bottom: 8px; }
 .detail-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .detail-chips .chip { padding: 4px 10px; }
 
+/* Attendance overview modal */
+.detail-modal.wide-modal { max-width: 520px; }
+.overview-member { padding: 10px 0; border-top: 1px solid var(--line); }
+.overview-member:first-of-type { border-top: none; }
+.overview-name { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.overview-name strong { font-size: 14px; }
+.overview-name small { color: var(--muted); margin-left: auto; font-size: 11px; }
+.overview-member .detail-row { padding-left: 18px; }
+.overview-member .detail-row .del { position: static; opacity: 1; margin-left: 6px; }
+
 @keyframes slideIn { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
