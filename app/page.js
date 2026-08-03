@@ -5,8 +5,6 @@ import { PALETTE, nextColor } from '@/lib/colors'
 import { WEEKDAYS, dateKey, monthGrid, monthLabel } from '@/lib/dates'
 import { isRest, isWeekend, isHoliday, familyDay } from '@/lib/holidays'
 
-const MAX_MEMBERS = 9
-
 const ATT_TYPES = [
   { value: 'vacation', label: '휴가', icon: '🏝️' },
   { value: 'training', label: '교육', icon: '🎓' },
@@ -141,10 +139,6 @@ export default function Home() {
   function addMember() {
     const name = newName.trim()
     if (!name) return
-    if (members.length >= MAX_MEMBERS) {
-      alert(`팀원은 최대 ${MAX_MEMBERS}명까지 추가할 수 있어요.`)
-      return
-    }
     const m = { id: makeId(), name, color: newColor || nextColor(members) }
     update({ members: [...members, m] })
     setNewName('')
@@ -174,7 +168,6 @@ export default function Home() {
   function addToCell(key, memberId) {
     const ids = schedule[key] || []
     if (ids.includes(memberId)) return
-    if (ids.length >= MAX_MEMBERS) return
     update({ schedule: { ...schedule, [key]: [...ids, memberId] } })
   }
 
@@ -533,11 +526,11 @@ export default function Home() {
                 </div>
               )}
               {isMobile ? (
-                <div className="chips">
+                <div className="dots">
                   {ids.map((id) => {
                     const m = memberById[id]
                     if (!m) return null
-                    return <span key={id} className="chip" style={{ background: m.color }}>{m.name}</span>
+                    return <span key={id} className="dot" style={{ background: m.color }} title={m.name} />
                   })}
                 </div>
               ) : (
@@ -631,33 +624,71 @@ export default function Home() {
           </div>
         )}
 
-        {sheetKey && (
-          <div className="overlay bottom" onClick={() => setSheetKey(null)}>
-            <div className="sheet" onClick={(e) => e.stopPropagation()}>
-              <div className="sheet-head">
-                <strong>{sheetKey} 참석자</strong>
-                <button className="close" onClick={() => setSheetKey(null)}>완료</button>
-              </div>
-              {!members.length && <p className="empty">먼저 ☰ 메뉴에서 팀원을 추가하세요.</p>}
-              <div className="sheet-list">
-                {members.map((m) => {
-                  const on = sheetIds.includes(m.id)
-                  return (
-                    <button
-                      key={m.id}
-                      className={'sheet-item' + (on ? ' on' : '')}
-                      style={{ background: m.color }}
-                      onClick={() => toggleMemberOnDay(sheetKey, m.id)}
-                    >
-                      <span>{m.name}</span>
-                      <span className="check">{on ? '✓' : ''}</span>
-                    </button>
-                  )
-                })}
+        {sheetKey && (() => {
+          const sheetAtt = attendance.filter((a) => a.start <= sheetKey && sheetKey <= a.end)
+          const sheetEv = events.filter((ev) => ev.start <= sheetKey && sheetKey <= ev.end)
+          return (
+            <div className="overlay bottom" onClick={() => setSheetKey(null)}>
+              <div className="sheet" onClick={(e) => e.stopPropagation()}>
+                <div className="sheet-head">
+                  <strong>{sheetKey}</strong>
+                  <button className="close" onClick={() => setSheetKey(null)}>완료</button>
+                </div>
+
+                {sheetEv.length > 0 && (
+                  <div className="sheet-section">
+                    <h3>🎉 이벤트</h3>
+                    {sheetEv.map((ev) => (
+                      <div className="detail-row" key={ev.id}>
+                        <span className="mini-dot" style={{ background: ev.color }} />
+                        <span>{ev.title}</span>
+                        <small>{ev.start} ~ {ev.end}</small>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {sheetAtt.length > 0 && (
+                  <div className="sheet-section">
+                    <h3>🗓️ 근태</h3>
+                    {sheetAtt.map((a) => {
+                      const m = memberById[a.memberId]
+                      if (!m) return null
+                      return (
+                        <div className="detail-row" key={a.id}>
+                          <span className="mini-dot" style={{ background: m.color }} />
+                          <span>{attIcon(a.type)} {m.name} · {attLabel(a.type)}</span>
+                          <small>{a.start} ~ {a.end}</small>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                <div className="sheet-section">
+                  <h3>🍚 점심 참석자</h3>
+                  {!members.length && <p className="empty">먼저 ☰ 메뉴에서 팀원을 추가하세요.</p>}
+                  <div className="sheet-list">
+                    {members.map((m) => {
+                      const on = sheetIds.includes(m.id)
+                      return (
+                        <button
+                          key={m.id}
+                          className={'sheet-item' + (on ? ' on' : '')}
+                          style={{ background: m.color }}
+                          onClick={() => toggleMemberOnDay(sheetKey, m.id)}
+                        >
+                          <span>{m.name}</span>
+                          <span className="check">{on ? '✓' : ''}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )
+        })()}
       </div>
     )
   }
