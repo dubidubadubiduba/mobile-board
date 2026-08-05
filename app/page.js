@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { PALETTE, nextColor } from '@/lib/colors'
+import { PALETTE, nextColor, readableTextColor } from '@/lib/colors'
 import { WEEKDAYS, dateKey, monthGrid, monthLabel, isoWeek } from '@/lib/dates'
 import { isRest, isWeekend, isHoliday, familyDay } from '@/lib/holidays'
 
@@ -379,7 +379,7 @@ export default function Home() {
             <div className="member-row" key={m.id}>
               <button
                 className={'name-btn' + (!isMobile && selectedId === m.id ? ' active' : '')}
-                style={{ background: m.color }}
+                style={{ background: m.color, color: readableTextColor(m.color) }}
                 onClick={() => !isMobile && setSelectedId(selectedId === m.id ? null : m.id)}
               >
                 {m.name}
@@ -532,7 +532,7 @@ export default function Home() {
                       <div
                         key={ev.id}
                         className={'bar ev' + (isStart ? ' bar-start' : '') + (isEnd ? ' bar-end' : '')}
-                        style={{ background: ev.color }}
+                        style={{ background: ev.color, color: readableTextColor(ev.color) }}
                         title={`${ev.title} (${ev.start} ~ ${ev.end})`}
                       >
                         {isStart ? `🎉 ${ev.title}` : ''}
@@ -548,7 +548,7 @@ export default function Home() {
                       <div
                         key={a.id}
                         className={'bar att' + (isStart ? ' bar-start' : '') + (isEnd ? ' bar-end' : '')}
-                        style={{ background: m.color }}
+                        style={{ background: m.color, color: readableTextColor(m.color) }}
                         title={`${m.name} · ${attLabel(a.type)} (${a.start} ~ ${a.end})`}
                       >
                         {isStart ? `${attIcon(a.type)} ${m.name} · ${attLabel(a.type)}` : ''}
@@ -574,7 +574,7 @@ export default function Home() {
                       <button
                         key={id}
                         className="chip"
-                        style={{ background: m.color }}
+                        style={{ background: m.color, color: readableTextColor(m.color) }}
                         onClick={(e) => {
                           e.stopPropagation()
                           removeFromCell(key, id)
@@ -619,7 +619,7 @@ export default function Home() {
         {memos.length === 0 && <p className="empty">아직 메모가 없어요.</p>}
         {memos.map((m) => (
           <div className="memo-row" key={m.id}>
-            <span className="memo-author" style={{ background: m.color }}>{m.author}</span>
+            <span className="memo-author" style={{ background: m.color, color: readableTextColor(m.color) }}>{m.author}</span>
             <span className="memo-text">{m.text}</span>
             <span className="memo-time">{formatTime(m.ts)}</span>
             <button className="memo-del" onClick={() => removeMemo(m.id)} title="삭제">✕</button>
@@ -764,7 +764,7 @@ export default function Home() {
                         <button
                           key={m.id}
                           className={'sheet-item' + (on ? ' on' : '')}
-                          style={{ background: m.color }}
+                          style={{ background: m.color, color: readableTextColor(m.color) }}
                           onClick={() => toggleMemberOnDay(sheetKey, m.id)}
                         >
                           <span>{m.name}</span>
@@ -849,7 +849,7 @@ export default function Home() {
                       <button
                         key={id}
                         className="chip"
-                        style={{ background: m.color }}
+                        style={{ background: m.color, color: readableTextColor(m.color) }}
                         onClick={() => removeFromCell(detailKey, id)}
                         title="눌러서 제외"
                       >
