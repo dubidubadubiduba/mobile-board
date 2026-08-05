@@ -433,7 +433,7 @@ export default function Home() {
           maxLength={20}
         />
         <div className="swatches">
-          {PALETTE.slice(9).map((c) => (
+          {PALETTE.slice(9, 18).map((c) => (
             <button
               key={c}
               className={'sw' + (evColor === c ? ' on' : '')}
