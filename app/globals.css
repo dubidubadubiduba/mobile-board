@@ -54,7 +54,8 @@ select { margin-bottom: 8px; }
 .hint { font-size: 12px; color: var(--muted); margin: 8px 0; line-height: 1.4; }
 .empty { font-size: 12px; color: var(--muted); }
 
-.member-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.dropdown-btn { display: flex; align-items: center; justify-content: space-between; padding-right: 12px; }
+.member-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 8px; }
 .member-row { position: relative; display: flex; }
 .name-btn {
   flex: 1; text-align: center; padding: 5px 4px; border: 2px solid transparent;

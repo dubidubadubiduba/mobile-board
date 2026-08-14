@@ -9,6 +9,8 @@ const ATT_TYPES = [
   { value: 'vacation', label: '휴가', icon: '🏝️' },
   { value: 'training', label: '교육', icon: '🎓' },
   { value: 'trip', label: '출장', icon: '✈️' },
+  { value: 'early-leave', label: '일찍 퇴근해요', icon: '🌇' },
+  { value: 'late-arrive', label: '늦게 출근해요', icon: '🌅' },
 ]
 const attLabel = (t) => ATT_TYPES.find((x) => x.value === t)?.label || t
 const attIcon = (t) => ATT_TYPES.find((x) => x.value === t)?.icon || ''
@@ -64,6 +66,9 @@ export default function Home() {
   // Overview modals
   const [attOverviewOpen, setAttOverviewOpen] = useState(false)
   const [evOverviewOpen, setEvOverviewOpen] = useState(false)
+
+  // Team member list dropdown
+  const [membersOpen, setMembersOpen] = useState(false)
 
   // Dark mode (persisted in localStorage)
   const [darkMode, setDarkMode] = useState(false)
@@ -374,21 +379,29 @@ export default function Home() {
             )
           })}
         </div>
-        <div className="member-list">
-          {members.map((m) => (
-            <div className="member-row" key={m.id}>
-              <button
-                className={'name-btn' + (!isMobile && selectedId === m.id ? ' active' : '')}
-                style={{ background: m.color, color: readableTextColor(m.color) }}
-                onClick={() => !isMobile && setSelectedId(selectedId === m.id ? null : m.id)}
-              >
-                {m.name}
-              </button>
-              <button className="del" onClick={() => removeMember(m.id)} title="삭제">✕</button>
-            </div>
-          ))}
-          {!members.length && <p className="empty">아직 팀원이 없어요.</p>}
-        </div>
+        <button
+          className="btn wide ghost dropdown-btn"
+          onClick={() => setMembersOpen((v) => !v)}
+        >
+          팀원 조회 ({members.length}) {membersOpen ? '▲' : '▼'}
+        </button>
+        {membersOpen && (
+          <div className="member-list">
+            {members.map((m) => (
+              <div className="member-row" key={m.id}>
+                <button
+                  className={'name-btn' + (!isMobile && selectedId === m.id ? ' active' : '')}
+                  style={{ background: m.color, color: readableTextColor(m.color) }}
+                  onClick={() => !isMobile && setSelectedId(selectedId === m.id ? null : m.id)}
+                >
+                  {m.name}
+                </button>
+                <button className="del" onClick={() => removeMember(m.id)} title="삭제">✕</button>
+              </div>
+            ))}
+            {!members.length && <p className="empty">아직 팀원이 없어요.</p>}
+          </div>
+        )}
       </section>
 
       <section className="panel">
