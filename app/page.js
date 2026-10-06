@@ -9,6 +9,7 @@ const ATT_TYPES = [
   { value: 'vacation', label: '휴가', icon: '🏝️' },
   { value: 'training', label: '교육', icon: '🎓' },
   { value: 'trip', label: '출장', icon: '✈️' },
+  { value: 'checkup', label: '건강검진', icon: '🩺' },
   { value: 'early-leave', label: '일찍 퇴근해요', icon: '🌇' },
   { value: 'late-arrive', label: '늦게 출근해요', icon: '🌅' },
 ]
