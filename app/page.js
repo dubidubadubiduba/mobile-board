@@ -177,32 +177,30 @@ export default function Home() {
   // this, each cell stacks its bars independently and a range jumps rows
   // whenever a neighbouring schedule starts/ends mid-span.
   //
-  // Events and attendance are packed as two *separate* blocks and attendance
-  // lanes are offset below every event lane, so within any cell each 파트
-  // 이벤트 bar sits above every 근태 bar (lunch chips render below the bars
-  // entirely). Within a block: greedy interval partitioning — earliest start
-  // first, then longer spans first (so they claim the top lanes), placing each
-  // item in the first lane free on its start date. Keyed by `ev:`/`att:` + id.
+  // Lane colouring: place 파트 이벤트 first into the lowest free lanes, then let
+  // each 근태 range fall into the lowest lane that stays clear of events (and of
+  // already-placed attendance) across its whole span. So where an event
+  // overlaps, attendance sits just below it; where no event overlaps, a long
+  // attendance bar rises to fill the empty top lanes instead of being pushed
+  // down with a big reserved gap above it. (Lunch chips render below the bars.)
   const laneByKey = useMemo(() => {
     const map = new Map()
-    // Pack `ranges` into lanes starting at `offset`; return the lane count used.
-    const pack = (ranges, offset) => {
-      const items = ranges.slice().sort((x, y) =>
-        x.start.localeCompare(y.start) ||
-        y.end.localeCompare(x.end) ||
-        x.id.localeCompare(y.id)
-      )
-      const laneEnds = [] // laneEnds[i] = end date of the range currently in lane i
-      for (const it of items) {
-        let lane = laneEnds.findIndex((end) => end < it.start)
-        if (lane === -1) { lane = laneEnds.length; laneEnds.push(it.end) }
-        else laneEnds[lane] = it.end
-        map.set(it.k, offset + lane)
-      }
-      return laneEnds.length
+    const hit = (iv, s, e) => iv.start <= e && s <= iv.end
+    // lanes[i] = date intervals already occupying lane i. Drop a range into the
+    // lowest lane no occupant overlaps, adding a lane when none is free.
+    const lanes = []
+    const place = (k, start, end) => {
+      let i = lanes.findIndex((ivs) => ivs.every((iv) => !hit(iv, start, end)))
+      if (i === -1) { i = lanes.length; lanes.push([]) }
+      lanes[i].push({ start, end })
+      map.set(k, i)
     }
-    const evLanes = pack(events.map((ev) => ({ k: `ev:${ev.id}`, id: ev.id, start: ev.start, end: ev.end })), 0)
-    pack(attendance.map((a) => ({ k: `att:${a.id}`, id: a.id, start: a.start, end: a.end })), evLanes)
+    const byStart = (x, y) =>
+      x.start.localeCompare(y.start) || y.end.localeCompare(x.end) || x.id.localeCompare(y.id)
+    events.map((ev) => ({ k: `ev:${ev.id}`, id: ev.id, start: ev.start, end: ev.end }))
+      .sort(byStart).forEach((it) => place(it.k, it.start, it.end))
+    attendance.map((a) => ({ k: `att:${a.id}`, id: a.id, start: a.start, end: a.end }))
+      .sort(byStart).forEach((it) => place(it.k, it.start, it.end))
     return map
   }, [events, attendance])
 
