@@ -167,7 +167,7 @@ select { margin-bottom: 8px; }
    start/end margins mark only a range's own two ends. */
 .bars {
   display: flex; flex-direction: column; gap: 2px;
-  max-height: 78px; overflow-y: auto;
+  max-height: 88px; overflow-y: auto;
 }
 .bars::-webkit-scrollbar { width: 4px; }
 .bars::-webkit-scrollbar-thumb { background: rgba(0,0,0,.2); border-radius: 2px; }
@@ -176,7 +176,12 @@ select { margin-bottom: 8px; }
   padding: 2px 6px; line-height: 1.2;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   border-radius: 0;
-  min-height: 14px;
+  /* Fixed height (not min-height) so every row — text, empty continuation,
+     spacer, and the 2px-bordered .ev bars — is identical. Varying row heights
+     shifted lower lanes by a pixel or two at cells where a neighbouring range
+     started/ended, making a multi-day line look kinked. box-sizing:border-box
+     keeps the 18px total regardless of padding/border. */
+  height: 18px;
 }
 .bar.bar-spacer { visibility: hidden; background: none !important; }
 .bar.ev { border-top: 1px dashed rgba(0,0,0,.35); border-bottom: 1px dashed rgba(0,0,0,.35); }
@@ -267,7 +272,7 @@ select { margin-bottom: 8px; }
 .m-main .cell .daynum { font-size: 11px; padding-left: 4px; padding-right: 4px; }
 .m-main .cell .family-day-badge { font-size: 8px; padding: 0 3px; margin: 0 4px; }
 /* Bars on mobile: no text, just color strips — tap the cell to see detail */
-.m-main .bar { font-size: 0; min-height: 5px; padding: 0; }
+.m-main .bar { font-size: 0; height: 6px; padding: 0; }
 .m-main .bars { max-height: 30px; gap: 1px; }
 /* Lunch attendees on mobile: colored dots, wraps to next row */
 .m-main .dots {
