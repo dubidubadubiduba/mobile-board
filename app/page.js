@@ -171,6 +171,35 @@ export default function Home() {
     [events]
   )
 
+  // Assign every multi-day range (events + attendance) a stable vertical lane
+  // so it renders on the same horizontal row in each cell it spans — one
+  // unbroken line. Without this, each cell stacks its bars independently and a
+  // range jumps rows whenever a neighbouring schedule starts/ends mid-span.
+  // Greedy interval partitioning: sort by start date, then longer spans first
+  // (multi-day bars claim the top lanes), then place each item in the first
+  // lane that is free on its start date. Keyed by `ev:`/`att:` + id.
+  const laneByKey = useMemo(() => {
+    const items = [
+      ...events.map((ev) => ({ k: `ev:${ev.id}`, start: ev.start, end: ev.end, kind: 0 })),
+      ...attendance.map((a) => ({ k: `att:${a.id}`, start: a.start, end: a.end, kind: 1 })),
+    ]
+    items.sort((x, y) =>
+      x.start.localeCompare(y.start) ||
+      y.end.localeCompare(x.end) ||
+      x.kind - y.kind ||
+      x.k.localeCompare(y.k)
+    )
+    const laneEnds = [] // laneEnds[i] = end date of the range currently holding lane i
+    const map = new Map()
+    for (const it of items) {
+      let lane = laneEnds.findIndex((end) => end < it.start)
+      if (lane === -1) { lane = laneEnds.length; laneEnds.push(it.end) }
+      else laneEnds[lane] = it.end
+      map.set(it.k, lane)
+    }
+    return map
+  }, [events, attendance])
+
   // ---- member ops ----
   function addMember() {
     const name = newName.trim()
@@ -524,6 +553,50 @@ export default function Home() {
           const isFamilyDay = d === familyDayNum
           const dayAttendance = attendance.filter((a) => a.start <= key && key <= a.end)
           const dayEvents = events.filter((ev) => ev.start <= key && key <= ev.end)
+          // Lay out this day's bars by their globally-assigned lane, filling any
+          // empty lanes with hidden spacers so each range stays on one row.
+          const dayBars = []
+          dayEvents.forEach((ev) => {
+            const isStart = ev.start === key
+            const isEnd = ev.end === key
+            dayBars.push({
+              lane: laneByKey.get(`ev:${ev.id}`) ?? 0,
+              node: (
+                <div
+                  key={ev.id}
+                  className={'bar ev' + (isStart ? ' bar-start' : '') + (isEnd ? ' bar-end' : '')}
+                  style={{ background: ev.color, color: readableTextColor(ev.color) }}
+                  title={`${ev.title} (${ev.start} ~ ${ev.end})`}
+                >
+                  {isStart ? `🎉 ${ev.title}` : ''}
+                </div>
+              ),
+            })
+          })
+          dayAttendance.forEach((a) => {
+            const m = memberById[a.memberId]
+            if (!m) return
+            const isStart = a.start === key
+            const isEnd = a.end === key
+            dayBars.push({
+              lane: laneByKey.get(`att:${a.id}`) ?? 0,
+              node: (
+                <div
+                  key={a.id}
+                  className={'bar att' + (isStart ? ' bar-start' : '') + (isEnd ? ' bar-end' : '')}
+                  style={{ background: m.color, color: readableTextColor(m.color) }}
+                  title={`${m.name} · ${attLabel(a.type)} (${a.start} ~ ${a.end})`}
+                >
+                  {isStart ? `${attIcon(a.type)} ${m.name} · ${attLabel(a.type)}` : ''}
+                </div>
+              ),
+            })
+          })
+          const maxLane = dayBars.reduce((mx, b) => Math.max(mx, b.lane), -1)
+          const barSlots = Array.from({ length: maxLane + 1 }, (_, i) => {
+            const b = dayBars.find((x) => x.lane === i)
+            return b ? b.node : <div key={`sp${i}`} className="bar bar-spacer" aria-hidden="true">&nbsp;</div>
+          })
           return (
             <div
               key={idx}
@@ -536,39 +609,8 @@ export default function Home() {
                 {d}
                 {isFamilyDay && <span className="family-day-badge">Family Day</span>}
               </div>
-              {(dayAttendance.length > 0 || dayEvents.length > 0) && (
-                <div className="bars">
-                  {dayEvents.map((ev) => {
-                    const isStart = ev.start === key
-                    const isEnd = ev.end === key
-                    return (
-                      <div
-                        key={ev.id}
-                        className={'bar ev' + (isStart ? ' bar-start' : '') + (isEnd ? ' bar-end' : '')}
-                        style={{ background: ev.color, color: readableTextColor(ev.color) }}
-                        title={`${ev.title} (${ev.start} ~ ${ev.end})`}
-                      >
-                        {isStart ? `🎉 ${ev.title}` : ''}
-                      </div>
-                    )
-                  })}
-                  {dayAttendance.map((a) => {
-                    const m = memberById[a.memberId]
-                    if (!m) return null
-                    const isStart = a.start === key
-                    const isEnd = a.end === key
-                    return (
-                      <div
-                        key={a.id}
-                        className={'bar att' + (isStart ? ' bar-start' : '') + (isEnd ? ' bar-end' : '')}
-                        style={{ background: m.color, color: readableTextColor(m.color) }}
-                        title={`${m.name} · ${attLabel(a.type)} (${a.start} ~ ${a.end})`}
-                      >
-                        {isStart ? `${attIcon(a.type)} ${m.name} · ${attLabel(a.type)}` : ''}
-                      </div>
-                    )
-                  })}
-                </div>
+              {dayBars.length > 0 && (
+                <div className="bars">{barSlots}</div>
               )}
               {isMobile ? (
                 <div className="dots">

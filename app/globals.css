@@ -116,7 +116,10 @@ select { margin-bottom: 8px; }
 .grid {
   display: grid; grid-template-columns: 32px repeat(7, 1fr);
   grid-auto-rows: 150px;
-  gap: 1px; background: var(--line);
+  /* Only a row gap (week separators). Columns touch so multi-day bars run
+     unbroken into the next day; the vertical day divider is redrawn below as
+     an inset shadow on each cell that the bars paint over. */
+  column-gap: 0; row-gap: 1px; background: var(--line);
   border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
 }
 .weeknum {
@@ -130,6 +133,9 @@ select { margin-bottom: 8px; }
   background: var(--panel); border: none; border-radius: 0;
   padding: 6px 0 6px 0; display: flex; flex-direction: column; gap: 4px;
   position: relative; overflow: hidden;
+  /* Vertical day divider, drawn behind children. Full-width bars cover it so
+     a span stays continuous; the inset daynum/chips leave it visible. */
+  box-shadow: inset 1px 0 0 var(--line);
 }
 .cell .bars { flex-shrink: 0; }
 .cell .daynum, .cell .family-day-badge, .cell .chips { padding-left: 6px; padding-right: 6px; }
@@ -155,8 +161,10 @@ select { margin-bottom: 8px; }
 }
 
 /* ---------- Event / attendance bars (top of cell) ---------- */
-/* Bars extend flush to cell edges so multi-day ranges look continuous
-   across the 1px grid gap (like Google Calendar). */
+/* Bars fill the full cell width (no horizontal padding on .cell) and the grid
+   has no column gap, so a multi-day range runs unbroken from one day into the
+   next — one straight line, like Google Calendar. Rounded caps + the 3px
+   start/end margins mark only a range's own two ends. */
 .bars {
   display: flex; flex-direction: column; gap: 2px;
   max-height: 78px; overflow-y: auto;
@@ -170,6 +178,7 @@ select { margin-bottom: 8px; }
   border-radius: 0;
   min-height: 14px;
 }
+.bar.bar-spacer { visibility: hidden; background: none !important; }
 .bar.ev { border-top: 1px dashed rgba(0,0,0,.35); border-bottom: 1px dashed rgba(0,0,0,.35); }
 .bar.bar-start { border-top-left-radius: 6px; border-bottom-left-radius: 6px; margin-left: 3px; }
 .bar.bar-end   { border-top-right-radius: 6px; border-bottom-right-radius: 6px; margin-right: 3px; }
