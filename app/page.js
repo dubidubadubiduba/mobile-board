@@ -172,32 +172,37 @@ export default function Home() {
     [events]
   )
 
-  // Assign every multi-day range (events + attendance) a stable vertical lane
-  // so it renders on the same horizontal row in each cell it spans — one
-  // unbroken line. Without this, each cell stacks its bars independently and a
-  // range jumps rows whenever a neighbouring schedule starts/ends mid-span.
-  // Greedy interval partitioning: sort by start date, then longer spans first
-  // (multi-day bars claim the top lanes), then place each item in the first
-  // lane that is free on its start date. Keyed by `ev:`/`att:` + id.
+  // Assign every multi-day range a stable vertical lane so it renders on the
+  // same horizontal row in each cell it spans — one unbroken line. Without
+  // this, each cell stacks its bars independently and a range jumps rows
+  // whenever a neighbouring schedule starts/ends mid-span.
+  //
+  // Events and attendance are packed as two *separate* blocks and attendance
+  // lanes are offset below every event lane, so within any cell each 파트
+  // 이벤트 bar sits above every 근태 bar (lunch chips render below the bars
+  // entirely). Within a block: greedy interval partitioning — earliest start
+  // first, then longer spans first (so they claim the top lanes), placing each
+  // item in the first lane free on its start date. Keyed by `ev:`/`att:` + id.
   const laneByKey = useMemo(() => {
-    const items = [
-      ...events.map((ev) => ({ k: `ev:${ev.id}`, start: ev.start, end: ev.end, kind: 0 })),
-      ...attendance.map((a) => ({ k: `att:${a.id}`, start: a.start, end: a.end, kind: 1 })),
-    ]
-    items.sort((x, y) =>
-      x.start.localeCompare(y.start) ||
-      y.end.localeCompare(x.end) ||
-      x.kind - y.kind ||
-      x.k.localeCompare(y.k)
-    )
-    const laneEnds = [] // laneEnds[i] = end date of the range currently holding lane i
     const map = new Map()
-    for (const it of items) {
-      let lane = laneEnds.findIndex((end) => end < it.start)
-      if (lane === -1) { lane = laneEnds.length; laneEnds.push(it.end) }
-      else laneEnds[lane] = it.end
-      map.set(it.k, lane)
+    // Pack `ranges` into lanes starting at `offset`; return the lane count used.
+    const pack = (ranges, offset) => {
+      const items = ranges.slice().sort((x, y) =>
+        x.start.localeCompare(y.start) ||
+        y.end.localeCompare(x.end) ||
+        x.id.localeCompare(y.id)
+      )
+      const laneEnds = [] // laneEnds[i] = end date of the range currently in lane i
+      for (const it of items) {
+        let lane = laneEnds.findIndex((end) => end < it.start)
+        if (lane === -1) { lane = laneEnds.length; laneEnds.push(it.end) }
+        else laneEnds[lane] = it.end
+        map.set(it.k, offset + lane)
+      }
+      return laneEnds.length
     }
+    const evLanes = pack(events.map((ev) => ({ k: `ev:${ev.id}`, id: ev.id, start: ev.start, end: ev.end })), 0)
+    pack(attendance.map((a) => ({ k: `att:${a.id}`, id: a.id, start: a.start, end: a.end })), evLanes)
     return map
   }, [events, attendance])
 
