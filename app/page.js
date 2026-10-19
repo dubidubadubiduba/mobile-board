@@ -538,10 +538,18 @@ export default function Home() {
           const rowStart = idx % 7 === 0
           let weeknumNode = null
           if (rowStart) {
-            let anchorDay = d
-            if (!anchorDay) for (let i = idx + 1; i < idx + 7; i++) if (cells[i]) { anchorDay = cells[i]; break }
-            const wn = anchorDay ? isoWeek(view.year, view.month, anchorDay) : null
-            const isCurWeek = anchorDay && wn === isoWeek(today.getFullYear(), today.getMonth(), today.getDate()) && view.year === today.getFullYear()
+            // Rows run Sun..Sat but ISO weeks run Mon..Sun, so a row's Sunday
+            // belongs to the previous ISO week. Label each row by its own Monday
+            // (day + 1 - column; Date.UTC rolls over month edges) so it reads W43
+            // for Sun 18 ~ Sat 24, and a month-ending lone Sunday doesn't repeat
+            // the previous row's number.
+            let wn = null
+            for (let c = 0; c < 7; c++) {
+              if (cells[idx + c]) { wn = isoWeek(view.year, view.month, cells[idx + c] + 1 - c); break }
+            }
+            const isCurWeek =
+              view.year === today.getFullYear() && view.month === today.getMonth() &&
+              cells.slice(idx, idx + 7).includes(today.getDate())
             weeknumNode = (
               <div key={`w${idx}`} className={'weeknum' + (isCurWeek ? ' cur' : '')}>
                 {wn ? `W${wn}` : ''}
