@@ -12,10 +12,15 @@ export async function GET() {
 export async function PUT(request) {
   const body = await request.json()
   // Only persist the known top-level keys.
-  const { members = [], schedule = {}, attendance = [], events = [], memos = [], version } = body || {}
-  const result = await setState({ members, schedule, attendance, events, memos }, version)
+  const { members = [], schedule = {}, attendance = [], events = [], memos = [], version, force } = body || {}
+  const ua = request.headers.get('user-agent') || ''
+  const result = await setState({ members, schedule, attendance, events, memos }, version, { force: force === true, ua })
   if (result.conflict) {
     return NextResponse.json(result.state, { status: 409 })
+  }
+  if (result.blocked) {
+    // Too many entries would disappear in one save; the client must confirm.
+    return NextResponse.json({ removed: result.removed }, { status: 422 })
   }
   return NextResponse.json(result.state)
 }

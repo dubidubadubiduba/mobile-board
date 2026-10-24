@@ -1,9 +1,17 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { mergeState } from '@/lib/merge'
 import { PALETTE, nextColor, readableTextColor } from '@/lib/colors'
 import { WEEKDAYS, dateKey, monthGrid, monthLabel, isoWeek } from '@/lib/dates'
 import { isRest, isWeekend, isHoliday, familyDay } from '@/lib/holidays'
+
+const snapshot = (s) => ({
+  members: s.members || [],
+  schedule: s.schedule || {},
+  attendance: s.attendance || [],
+  events: s.events || [],
+})
 
 const ATT_TYPES = [
   { value: 'vacation', label: '휴가', icon: '🏝️' },
@@ -28,6 +36,9 @@ export default function Home() {
   const [events, setEvents] = useState([])
   const [memos, setMemos] = useState([])
   const [version, setVersion] = useState(0)
+  // Last server snapshot this client loaded or saved; the base for merging when a
+  // save is rejected because someone else saved first.
+  const baseRef = useRef({ members: [], schedule: {}, attendance: [], events: [] })
 
   const today = useMemo(() => new Date(), [])
   const [view, setView] = useState({ year: today.getFullYear(), month: today.getMonth() })
@@ -91,6 +102,15 @@ export default function Home() {
     return () => mq.removeEventListener('change', update)
   }, [])
 
+  // ---- warn before leaving with unsaved edits (edits live only in the page
+  // until 저장하기 is pressed, so a refresh/close would silently drop them) ----
+  useEffect(() => {
+    if (!isDirty) return
+    const onBeforeUnload = (e) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [isDirty])
+
   // ---- load ----
   useEffect(() => {
     fetch('/api/state')
@@ -102,6 +122,7 @@ export default function Home() {
         setEvents(s.events || [])
         setMemos(s.memos || [])
         setVersion(s.version || 0)
+        baseRef.current = snapshot(s)
       })
       .finally(() => setLoading(false))
   }, [])
@@ -120,30 +141,54 @@ export default function Home() {
   // ---- push a snapshot to the server, guarded by the version we last saw ----
   // If someone else saved in the meantime, the server rejects this (409)
   // instead of silently overwriting their changes.
-  function pushState(next) {
+  function pushState(next, { force = false } = {}) {
     return fetch('/api/state', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...next, version }),
+      body: JSON.stringify({ ...next, version, force }),
     }).then(async (r) => {
-      if (r.status === 409) return { ok: false, conflict: true }
+      if (r.status === 409) return { ok: false, conflict: true, server: await r.json() }
+      if (r.status === 422) return { ok: false, blocked: true, removed: (await r.json()).removed }
       if (!r.ok) return { ok: false, conflict: false }
       const saved = await r.json()
       setVersion(saved.version)
+      baseRef.current = snapshot(next)
       return { ok: true }
     }).catch(() => ({ ok: false, conflict: false }))
   }
 
   // ---- save to server ----
-  function save() {
+  function save(force = false) {
     setSaveStatus('saving')
-    pushState({ members, schedule, attendance, events, memos }).then((result) => {
+    pushState({ members, schedule, attendance, events, memos }, { force }).then((result) => {
+      if (result.blocked) {
+        // The server refused because many entries would vanish at once.
+        const r = result.removed || {}
+        const ok = confirm(
+          `이번 저장으로 많은 항목이 지워집니다 (점심 ${r.schedule || 0}건, 근태 ${r.attendance || 0}건, 이벤트 ${r.events || 0}건).\n정말 지우려는 게 맞으면 확인을 눌러 주세요.`
+        )
+        if (ok) save(true)
+        else setSaveStatus('idle')
+        return
+      }
       if (result.ok) {
         setSaveStatus('saved')
         setIsDirty(false)
         setTimeout(() => setSaveStatus('idle'), 2000)
       } else if (result.conflict) {
-        setSaveStatus('conflict')
+        // Someone saved first. Keep the user's edits: re-apply them on top of the
+        // latest server state and let them press save again.
+        const s = result.server
+        const merged = mergeState(baseRef.current, { members, schedule, attendance, events }, s)
+        setMembers(merged.members)
+        setSchedule(merged.schedule)
+        setAttendance(merged.attendance)
+        setEvents(merged.events)
+        setMemos(merged.memos)
+        setVersion(s.version || 0)
+        baseRef.current = snapshot(s)
+        setIsDirty(true)
+        setSaveStatus('merged')
       } else {
         setSaveStatus('error')
       }
@@ -364,6 +409,7 @@ export default function Home() {
   const saveLabel =
     saveStatus === 'saving'   ? '저장 중…' :
     saveStatus === 'saved'    ? '저장됨 ✓' :
+    saveStatus === 'merged'   ? '합쳐졌어요 · 다시 저장 ●' :
     saveStatus === 'conflict' ? '새로고침 필요 ⟳' :
     saveStatus === 'error'    ? '오류 ✕' :
     isDirty                   ? '저장하기 ●' : '저장하기'
@@ -375,7 +421,7 @@ export default function Home() {
         (saveStatus === 'error' ? ' save-err' : '') +
         (saveStatus === 'conflict' ? ' save-conflict' : '') +
         (!isDirty && saveStatus === 'idle' ? ' save-dim' : '')}
-      onClick={saveStatus === 'conflict' ? () => window.location.reload() : save}
+      onClick={saveStatus === 'conflict' ? () => window.location.reload() : () => save()}
       disabled={saveStatus === 'saving'}
       title={saveStatus === 'conflict' ? '다른 사람이 방금 저장했어요. 눌러서 최신 내용을 불러오세요.' : undefined}
     >
